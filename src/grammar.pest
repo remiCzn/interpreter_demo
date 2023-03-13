@@ -1,0 +1,19 @@
+Program = _{ SOI ~ ExprList ~ EOI}
+ExprList = { (Expr ~ ";")* ~ Expr }
+Expr = _{ IntExpr | If | BoolExpr }
+
+//Int
+Int = @{ (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT+ | ASCII_DIGIT) }
+IntExpr = _{ IntBinaryExpr | IntTerm }
+IntTerm = _{Int | "(" ~ IntExpr ~ ")" }
+IntBinaryExpr = { IntTerm ~ IntOperator ~ IntTerm }
+IntOperator = { "+" | "-" | "*" | "/" }
+
+//Bool
+Bool = @{ "True" | "False" }
+BoolExpr = { Bool }
+
+//If
+If = { "if(" ~ BoolExpr ~ ")" ~ "{" ~ ExprList ~ "}" ~ ("else" ~ "{" ~ ExprList ~ "}")?}
+
+WHITESPACE = _{ " " | "\t" | NEWLINE }
