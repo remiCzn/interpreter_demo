@@ -6,12 +6,23 @@ pub enum Operator {
     Divides,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum BoolOperator {
+    And,
+    Or,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Node {
     NodeList(Vec<Box<Node>>),
     Int(i32),
-    BinaryExpr {
+    IntBinaryExpr {
         op: Operator,
+        lterm: Box<Node>,
+        rterm: Box<Node>,
+    },
+    BoolBinaryExpr {
+        op: BoolOperator,
         lterm: Box<Node>,
         rterm: Box<Node>,
     },

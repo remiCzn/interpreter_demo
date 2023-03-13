@@ -1,4 +1,4 @@
-use crate::ast::{Node, Operator};
+use crate::ast::{BoolOperator, Node, Operator};
 use crate::parse;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -12,9 +12,13 @@ pub fn interpret(node: Node) -> Return {
     match node {
         Node::NodeList(list) => {
             let n = list.len();
-            for noden in list[0..(n - 2)].to_vec() {
-                interpret(*noden);
+            // Execute the first instructions
+            if n >= 2 {
+                for noden in list[0..(n - 2)].to_vec() {
+                    interpret(*noden);
+                }
             }
+            // Return the last one
             if let Some(inst) = list.get(n - 1) {
                 let a = Box::as_ref(inst);
                 interpret(a.clone())
@@ -23,9 +27,10 @@ pub fn interpret(node: Node) -> Return {
             }
         }
         Node::Int(n) => Return::Int(n),
-        Node::BinaryExpr { op, lterm, rterm } => {
+        Node::IntBinaryExpr { op, lterm, rterm } => {
             let t1 = interpret_and_expect_int(*lterm);
             let t2 = interpret_and_expect_int(*rterm);
+            println!("{}, {}", t1, t2);
             match op {
                 Operator::Plus => Return::Int(t1 + t2),
                 Operator::Minus => Return::Int(t1 - t2),
@@ -49,6 +54,14 @@ pub fn interpret(node: Node) -> Return {
                 }
             }
         }
+        Node::BoolBinaryExpr { op, lterm, rterm } => Return::Bool(match op {
+            BoolOperator::And => {
+                interpret_and_expect_bool(*lterm) && interpret_and_expect_bool(*rterm)
+            }
+            BoolOperator::Or => {
+                interpret_and_expect_bool(*lterm) || interpret_and_expect_bool(*rterm)
+            }
+        }),
     }
 }
 

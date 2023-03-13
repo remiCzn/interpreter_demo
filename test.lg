@@ -1,7 +1,5 @@
-if(False) {
-3;
-3+2
+if(True || False) {
+3+4; 3
 } else {
-(5-4) / 3;
 4
 }
