@@ -9,18 +9,19 @@ pub enum Return {
 }
 
 pub fn interpret(node: Node) -> Return {
+    use crate::interpret::Return::{Bool, Int};
     match node {
-        Node::NodeList(list) => {
+        Node::NodeSeq(list) => {
             let n = list.len();
             // Execute the first instructions
             if n >= 2 {
-                for noden in list[0..(n - 2)].to_vec() {
-                    interpret(*noden);
+                for noden in list[0..(n - 2)].iter().cloned() {
+                    interpret(noden);
                 }
             }
             // Return the last one
             if let Some(inst) = list.get(n - 1) {
-                let a = Box::as_ref(inst);
+                let a = inst;
                 interpret(a.clone())
             } else {
                 Return::Null
@@ -30,32 +31,55 @@ pub fn interpret(node: Node) -> Return {
         Node::BinaryExpr { op, lterm, rterm } => {
             let t1 = interpret(*lterm);
             let t2 = interpret(*rterm);
-            println!("{}, {}", t1, t2);
-            match op {
-                BinaryOperator::Plus => Return::Int(t1 + t2),
-                BinaryOperator::Minus => Return::Int(t1 - t2),
-                BinaryOperator::Times => Return::Int(t1 * t2),
-                BinaryOperator::Divides => Return::Int(t1 / t2),
+
+            match (t1, t2) {
+                (Int(a), Int(b)) => match op {
+                    BinaryOperator::Plus => Return::Int(a + b),
+                    BinaryOperator::Minus => Return::Int(a - b),
+                    BinaryOperator::Times => Return::Int(a * b),
+                    BinaryOperator::Divides => Return::Int(a / b),
+                    BinaryOperator::Different => Return::Bool(a != b),
+                    BinaryOperator::Equal => Return::Bool(a == b),
+                    BinaryOperator::More => Return::Bool(a > b),
+                    BinaryOperator::MoreOrEqual => Return::Bool(a >= b),
+                    BinaryOperator::Less => Return::Bool(a < b),
+                    BinaryOperator::LessOrEqual => Return::Bool(a <= b),
+                    _ => panic!("Unapplicable operator for Int: {:?}", op),
+                },
+                (Bool(a), Bool(b)) => match op {
+                    BinaryOperator::And => Return::Bool(a && b),
+                    BinaryOperator::Or => Return::Bool(a || b),
+                    BinaryOperator::Different => Return::Bool(a != b),
+                    BinaryOperator::Equal => Return::Bool(a == b),
+                    _ => panic!("Unapplicable operator for Bool: {:?}", op),
+                },
+                (t1, t2) => panic!(
+                    "t1 and t2 should have the same type, got t1: {:?}, t2: {:?}",
+                    t1, t2
+                ),
             }
         }
-    }
-    Return::Null
-}
-
-fn interpret_and_expect_int(node: Node) -> i32 {
-    match interpret(node) {
-        Return::Int(n) => n,
-        a => panic!("Wrong type, expect Int, got {:?}", a),
-    }
-}
-
-fn interpret_and_expect_bool(node: Node) -> bool {
-    match interpret(node) {
-        Return::Bool(n) => n,
-        a => panic!("Wrong type, expect Bool, got {:?}", a),
+        Node::Bool(b) => Return::Bool(b),
+        Node::If {
+            cond,
+            then_term,
+            else_term,
+        } => {
+            let cond = interpret(*cond);
+            if let Return::Bool(res) = cond {
+                if res {
+                    interpret(*then_term)
+                } else {
+                    interpret(*else_term)
+                }
+            } else {
+                panic!("Expected boolean, got {:?}", cond)
+            }
+        }
     }
 }
 
 pub fn run(source: &str) -> Return {
-    interpret(parse(source).unwrap())
+    let parsed = parse(source).unwrap();
+    interpret(parsed)
 }

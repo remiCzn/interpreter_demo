@@ -18,8 +18,8 @@ pub enum BinaryOperator {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Node {
-    NodeList(Vec<Box<Node>>),
     Int(i32),
+    NodeSeq(Vec<Node>),
     Bool(bool),
     BinaryExpr {
         op: BinaryOperator,
@@ -39,7 +39,7 @@ impl Display for Node {
             Node::Int(i) => write!(f, "{}", i),
             Node::Bool(b) => write!(f, "{}", b),
             Node::BinaryExpr { rterm, op, lterm } => write!(f, "{} {:?} {}", lterm, op, rterm),
-            Node::NodeList(list) => {
+            Node::NodeSeq(list) => {
                 let mut ss = String::new();
                 for inst in list {
                     ss.push_str(format!("{}", inst).as_str());

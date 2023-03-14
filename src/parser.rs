@@ -29,9 +29,9 @@ fn parse_exprlist(pair: Pair<Rule>) -> Node {
         Rule::ExprList => {
             let mut instructions = vec![];
             for instr in pair.into_inner() {
-                instructions.push(Box::from(parse_exprlist(instr)));
+                instructions.push(parse_exprlist(instr));
             }
-            Node::NodeList(instructions)
+            Node::NodeSeq(instructions)
         }
         Rule::Int => {
             let istr = pair.as_str();
