@@ -1,22 +1,20 @@
 Program  = _{ SOI ~ ExprList ~ EOI }
 ExprList =  { (Expr ~ ";")* ~ Expr }
-Expr     = _{ IntExpr | If | BoolExpr }
+Expr     = _{ BinaryExpr | Term | If }
 
-// Int
-Int           = @{ (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT+ | ASCII_DIGIT) }
-IntExpr       = _{ IntBinaryExpr | IntTerm }
-IntTerm       = _{ Int | "(" ~ IntExpr ~ ")" }
-IntBinaryExpr =  { IntTerm ~ IntOperator ~ IntTerm }
-IntOperator   =  { "+" | "-" | "*" | "/" }
+// Int (Int -> Int)
+Int  = @{ (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT+ | ASCII_DIGIT) }
+Bool = @{ "True" | "False" }
 
-// Bool
-Bool           = @{ "True" | "False" }
-BoolTerm       = _{ Bool | "(" ~ BoolExpr ~ "}" }
-BoolOp         =  { "&&" | "||" }
-BoolBinaryExpr =  { BoolTerm ~ BoolOp ~ BoolTerm }
-BoolExpr       =  _{ BoolBinaryExpr | BoolTerm }
+Term = _{ Int | Bool | "(" ~ Expr ~ ")" }
+
+BinaryExpr   =  { Term ~ Operator ~ Term }
+Operator     =  { IntOperator | CompOperator | BoolOperator }
+IntOperator  = _{ "+" | "-" | "*" | "/" }
+CompOperator = _{ "<" | "<=" | ">" | ">=" | "==" | "!=" }
+BoolOperator = _{ "&&" | "||" }
 
 // If
-If = { "if(" ~ BoolExpr ~ ")" ~ "{" ~ ExprList ~ "}" ~ ("else" ~ "{" ~ ExprList ~ "}")? }
+If = { "if(" ~ Expr ~ ")" ~ "{" ~ ExprList ~ "}" ~ "else" ~ "{" ~ ExprList ~ "}" }
 
 WHITESPACE = _{ " " | "\t" | NEWLINE }

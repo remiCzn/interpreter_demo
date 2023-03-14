@@ -1,4 +1,4 @@
-use crate::ast::{BoolOperator, Node, Operator};
+use crate::ast::{BinaryOperator, Node};
 use crate::parse;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -27,42 +27,19 @@ pub fn interpret(node: Node) -> Return {
             }
         }
         Node::Int(n) => Return::Int(n),
-        Node::IntBinaryExpr { op, lterm, rterm } => {
-            let t1 = interpret_and_expect_int(*lterm);
-            let t2 = interpret_and_expect_int(*rterm);
+        Node::BinaryExpr { op, lterm, rterm } => {
+            let t1 = interpret(*lterm);
+            let t2 = interpret(*rterm);
             println!("{}, {}", t1, t2);
             match op {
-                Operator::Plus => Return::Int(t1 + t2),
-                Operator::Minus => Return::Int(t1 - t2),
-                Operator::Times => Return::Int(t1 * t2),
-                Operator::Divides => Return::Int(t1 / t2),
+                BinaryOperator::Plus => Return::Int(t1 + t2),
+                BinaryOperator::Minus => Return::Int(t1 - t2),
+                BinaryOperator::Times => Return::Int(t1 * t2),
+                BinaryOperator::Divides => Return::Int(t1 / t2),
             }
         }
-        Node::Bool(bool) => Return::Bool(bool),
-        Node::If {
-            cond,
-            then_term,
-            else_term,
-        } => {
-            if interpret_and_expect_bool(*cond) {
-                interpret(*then_term)
-            } else {
-                if let Some(else_term) = else_term {
-                    interpret(*else_term)
-                } else {
-                    Return::Null
-                }
-            }
-        }
-        Node::BoolBinaryExpr { op, lterm, rterm } => Return::Bool(match op {
-            BoolOperator::And => {
-                interpret_and_expect_bool(*lterm) && interpret_and_expect_bool(*rterm)
-            }
-            BoolOperator::Or => {
-                interpret_and_expect_bool(*lterm) || interpret_and_expect_bool(*rterm)
-            }
-        }),
     }
+    Return::Null
 }
 
 fn interpret_and_expect_int(node: Node) -> i32 {

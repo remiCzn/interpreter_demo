@@ -1,5 +1,5 @@
-use crate::ast::Node::Int;
-use crate::ast::{BoolOperator, Node, Operator};
+use crate::ast::Node::{Bool, Int};
+use crate::ast::{BinaryOperator, Node};
 use pest::iterators::Pair;
 use pest::{self, Parser};
 
@@ -38,70 +38,51 @@ fn parse_exprlist(pair: Pair<Rule>) -> Node {
             let int: i32 = istr.parse().unwrap();
             Int(int)
         }
-        Rule::IntBinaryExpr => {
-            let mut terms = pair.into_inner();
-            let lterm = parse_exprlist(terms.next().unwrap());
-            let op = parse_ops(terms.next().unwrap().as_str());
-            let rterm = parse_exprlist(terms.next().unwrap());
-            Node::IntBinaryExpr {
-                op,
-                lterm: Box::from(lterm),
-                rterm: Box::from(rterm),
-            }
-        }
-        Rule::BoolBinaryExpr => {
-            let mut terms = pair.into_inner();
-            let lterm = parse_exprlist(terms.next().unwrap());
-            let op = parse_bool_ops(terms.next().unwrap().as_str());
-            let rterm = parse_exprlist(terms.next().unwrap());
-            Node::BoolBinaryExpr {
-                op,
-                lterm: Box::from(lterm),
-                rterm: Box::from(rterm),
-            }
-        }
-        Rule::Bool => parse_bool(pair),
+        Rule::Bool => match pair.as_str() {
+            "True" => Bool(true),
+            "False" => Bool(false),
+            a => panic!("Wrong boolean form: {}", a),
+        },
         Rule::If => {
             let mut terms = pair.into_inner();
-            let cond = Box::from(parse_bool(terms.next().unwrap()));
+            let cond = Box::from(parse_exprlist(terms.next().unwrap()));
             let then_term = Box::from(parse_exprlist(terms.next().unwrap()));
-            let _else_term = terms.next();
-            let else_term = match _else_term {
-                None => None,
-                Some(a) => Some(Box::from(parse_exprlist(a))),
-            };
+            let else_term = Box::from(parse_exprlist(terms.next().unwrap()));
             Node::If {
                 cond,
                 then_term,
                 else_term,
             }
         }
+        Rule::BinaryExpr => {
+            let mut terms = pair.into_inner();
+            let t1 = parse_exprlist(terms.next().unwrap());
+            let op = parse_operator(terms.next().unwrap().as_str());
+            let t2 = parse_exprlist(terms.next().unwrap());
+            Node::BinaryExpr {
+                op,
+                lterm: Box::from(t1),
+                rterm: Box::from(t2),
+            }
+        }
         _ => panic!("Can't parse this {:?}", pair),
     }
 }
 
-fn parse_ops(op_str: &str) -> Operator {
-    match op_str {
-        "+" => Operator::Plus,
-        "-" => Operator::Minus,
-        "*" => Operator::Times,
-        "/" => Operator::Divides,
-        a => panic!("Unexisting operator: {a}"),
-    }
-}
-
-fn parse_bool_ops(op_str: &str) -> BoolOperator {
-    match op_str {
-        "&&" => BoolOperator::And,
-        "||" => BoolOperator::Or,
-        a => panic!("Unexisting operator: {a}"),
-    }
-}
-
-fn parse_bool(bool: Pair<Rule>) -> Node {
-    match bool.as_str() {
-        "True" => Node::Bool(true),
-        "False" => Node::Bool(false),
-        _ => parse_exprlist(bool),
+fn parse_operator(op: &str) -> BinaryOperator {
+    match op {
+        "+" => BinaryOperator::Plus,
+        "-" => BinaryOperator::Minus,
+        "*" => BinaryOperator::Times,
+        "/" => BinaryOperator::Divides,
+        "<" => BinaryOperator::Less,
+        "<=" => BinaryOperator::LessOrEqual,
+        ">" => BinaryOperator::More,
+        ">=" => BinaryOperator::MoreOrEqual,
+        "||" => BinaryOperator::Or,
+        "&&" => BinaryOperator::And,
+        "==" => BinaryOperator::Equal,
+        "!=" => BinaryOperator::Different,
+        u => panic!("Unknown operator: {}", u),
     }
 }
