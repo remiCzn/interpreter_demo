@@ -76,10 +76,14 @@ pub fn interpret(node: Node) -> Return {
                 panic!("Expected boolean, got {:?}", cond)
             }
         }
+        Node::Let(_, _) => Int(2),
+        Node::Var(_) => Int(1),
     }
 }
 
 pub fn run(source: &str) -> Return {
-    let parsed = parse(source).unwrap();
-    interpret(parsed)
+    let parsed = parse(source);
+    println!("{:?}", parsed);
+    let p = parsed.first().unwrap();
+    interpret(p.clone())
 }

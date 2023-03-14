@@ -31,6 +31,8 @@ pub enum Node {
         then_term: Box<Node>,
         else_term: Box<Node>,
     },
+    Let(String, Box<Node>),
+    Var(String),
 }
 
 impl Display for Node {
@@ -55,6 +57,12 @@ impl Display for Node {
                 "if({}) {{ {} }} else {{ {} }}",
                 cond, then_term, else_term
             ),
+            Node::Let(name, node) => {
+                write!(f, "let {} = {}", name, node)
+            }
+            Node::Var(name) => {
+                write!(f, "{}", name)
+            }
         }
     }
 }

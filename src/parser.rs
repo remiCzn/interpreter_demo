@@ -7,21 +7,18 @@ use pest::{self, Parser};
 #[grammar = "grammar.pest"]
 struct Parse;
 
-pub fn parse(source: &str) -> Result<Node, String> {
+pub fn parse(source: &str) -> Vec<Node> {
     let pairs = Parse::parse(Rule::Program, source).unwrap();
-    let mut res = None;
+    let mut res = vec![];
     for pair in pairs {
         if let Rule::ExprList = pair.as_rule() {
             for inst in pair.into_inner() {
                 println!("Parsing instruction: {:?}", inst.as_str());
-                res = Some(parse_exprlist(inst));
+                res.push(parse_exprlist(inst));
             }
         }
     }
-    match res {
-        None => Err(format!("Can't parse: {source}")),
-        Some(a) => Ok(a),
-    }
+    res
 }
 
 fn parse_exprlist(pair: Pair<Rule>) -> Node {
@@ -65,6 +62,15 @@ fn parse_exprlist(pair: Pair<Rule>) -> Node {
                 rterm: Box::from(t2),
             }
         }
+        Rule::Let => {
+            let mut terms = pair.into_inner();
+            let var_name = terms.next().unwrap().as_str();
+            Node::Let(
+                var_name.to_string(),
+                Box::from(parse_exprlist(terms.next().unwrap())),
+            )
+        }
+        Rule::Var => Node::Var(pair.as_str().to_string()),
         _ => panic!("Can't parse this {:?}", pair),
     }
 }
