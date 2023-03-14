@@ -18,7 +18,9 @@ BoolOperator = _{ "&&" | "||" }
 If = { "if(" ~ Expr ~ ")" ~ "{" ~ ExprList ~ "}" ~ "else" ~ "{" ~ ExprList ~ "}" }
 
 // Let
-Let =  { "let" ~ Var ~ "=" ~ Term }
-Var = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
+Let = { "let" ~ Var ~ "=" ~ Term }
+Var = { !ForbiddenTerms ~ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
+
+ForbiddenTerms = { "if" | "let" | "True" | "False" }
 
 WHITESPACE = _{ " " | "\t" | NEWLINE }
