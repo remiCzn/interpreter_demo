@@ -4,18 +4,18 @@ mod tests {
 
     #[test]
     fn simple_test() {
-        assert_eq!(run("3"), Value::Int(3));
-        assert_eq!(run("((2))"), Value::Int(2));
-        assert_eq!(run("(26)"), Value::Int(26));
+        assert_eq!(run("3"), Ok(Value::Int(3)));
+        assert_eq!(run("((2))"), Ok(Value::Int(2)));
+        assert_eq!(run("(26)"), Ok(Value::Int(26)));
     }
 
     #[test]
     fn binary_tests() {
-        assert_eq!(run("3 -2"), Value::Int(1));
-        assert_eq!(run("4+ 3"), Value::Int(7));
-        assert_eq!(run("6  *7"), Value::Int(42));
-        assert_eq!(run(" 5/ 4"), Value::Int(1));
-        assert_eq!(run("(3-2)"), Value::Int(1));
-        assert_eq!(run("(5*4)-(60/3)"), Value::Int(0));
+        assert_eq!(run("3 -2"), Ok(Value::Int(1)));
+        assert_eq!(run("4+ 3"), Ok(Value::Int(7)));
+        assert_eq!(run("6  *7"), Ok(Value::Int(42)));
+        assert_eq!(run(" 5/ 4"), Ok(Value::Int(1)));
+        assert_eq!(run("(3-2)"), Ok(Value::Int(1)));
+        assert_eq!(run("(5*4)-(60/3)"), Ok(Value::Int(0)));
     }
 }

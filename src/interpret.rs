@@ -12,7 +12,7 @@ pub enum Value {
 
 type Env = HashMap<String, Value>;
 
-pub fn interpret(node: Node, env: Env) -> (Value, Env) {
+pub fn interpret(node: Node, env: Env) -> Result<(Value, Env), String> {
     use crate::interpret::Value::{Bool, Int, Null};
     match node {
         Node::NodeSeq(list) => {
@@ -20,7 +20,7 @@ pub fn interpret(node: Node, env: Env) -> (Value, Env) {
             // Execute the first instructions
             if n >= 2 {
                 for noden in list[0..(n - 2)].iter().cloned() {
-                    interpret(noden, env.clone());
+                    let _ = interpret(noden, env.clone());
                 }
             }
             // Return the last one
@@ -28,49 +28,62 @@ pub fn interpret(node: Node, env: Env) -> (Value, Env) {
                 let a = inst;
                 interpret(a.clone(), env)
             } else {
-                (Null, env)
+                Ok((Null, env))
             }
         }
-        Node::Int(n) => (Int(n), env),
+        Node::Int(n) => Ok((Int(n), env)),
         Node::BinaryExpr { op, lterm, rterm } => {
-            let (t1, _) = interpret(*lterm, env.clone());
-            let (t2, _) = interpret(*rterm, env.clone());
+            let t1 = match interpret(*lterm, env.clone()) {
+                Ok((t1, _)) => t1,
+                Err(e) => return Err(e),
+            };
+
+            let t2 = match interpret(*rterm, env.clone()) {
+                Ok((t2, _)) => t2,
+                Err(e) => return Err(e),
+            };
 
             let value = match (t1, t2) {
                 (Int(a), Int(b)) => match op {
-                    BinaryOperator::Plus => Int(a + b),
-                    BinaryOperator::Minus => Int(a - b),
-                    BinaryOperator::Times => Int(a * b),
-                    BinaryOperator::Divides => Int(a / b),
-                    BinaryOperator::Different => Bool(a != b),
-                    BinaryOperator::Equal => Bool(a == b),
-                    BinaryOperator::More => Bool(a > b),
-                    BinaryOperator::MoreOrEqual => Bool(a >= b),
-                    BinaryOperator::Less => Bool(a < b),
-                    BinaryOperator::LessOrEqual => Bool(a <= b),
-                    _ => panic!("Unapplicable operator for Int: {:?}", op),
+                    BinaryOperator::Plus => Ok(Int(a + b)),
+                    BinaryOperator::Minus => Ok(Int(a - b)),
+                    BinaryOperator::Times => Ok(Int(a * b)),
+                    BinaryOperator::Divides => Ok(Int(a / b)),
+                    BinaryOperator::Different => Ok(Bool(a != b)),
+                    BinaryOperator::Equal => Ok(Bool(a == b)),
+                    BinaryOperator::More => Ok(Bool(a > b)),
+                    BinaryOperator::MoreOrEqual => Ok(Bool(a >= b)),
+                    BinaryOperator::Less => Ok(Bool(a < b)),
+                    BinaryOperator::LessOrEqual => Ok(Bool(a <= b)),
+                    _ => Err(format!("Unapplicable operator for Int: {:?}", op)),
                 },
                 (Bool(a), Bool(b)) => match op {
-                    BinaryOperator::And => Bool(a && b),
-                    BinaryOperator::Or => Bool(a || b),
-                    BinaryOperator::Different => Bool(a != b),
-                    BinaryOperator::Equal => Bool(a == b),
-                    _ => panic!("Unapplicable operator for Bool: {:?}", op),
+                    BinaryOperator::And => Ok(Bool(a && b)),
+                    BinaryOperator::Or => Ok(Bool(a || b)),
+                    BinaryOperator::Different => Ok(Bool(a != b)),
+                    BinaryOperator::Equal => Ok(Bool(a == b)),
+                    _ => Err(format!("Unapplicable operator for Bool: {:?}", op)),
                 },
-                (t1, t2) => panic!(
+                (t1, t2) => Err(format!(
                     "t1 and t2 should have the same type, got t1: {:?}, t2: {:?}",
                     t1, t2
-                ),
+                )),
             };
-            (value, env)
+            match value {
+                Ok(v) => Ok((v, env)),
+                Err(e) => Err(e),
+            }
         }
-        Node::Bool(b) => (Bool(b), env),
+        Node::Bool(b) => Ok((Bool(b), env)),
         Node::If {
             cond,
             then_term,
             else_term,
         } => {
-            let (cond, _) = interpret(*cond, env.clone());
+            let cond = match interpret(*cond, env.clone()) {
+                Ok((b, _)) => b,
+                Err(e) => return Err(e),
+            };
             if let Bool(res) = cond {
                 if res {
                     interpret(*then_term, env)
@@ -82,15 +95,18 @@ pub fn interpret(node: Node, env: Env) -> (Value, Env) {
             }
         }
         Node::Let(name, value) => {
-            let (value, _) = interpret(*value, env.clone());
+            let value = match interpret(*value, env.clone()) {
+                Ok((b, _)) => b,
+                Err(e) => return Err(e),
+            };
             let mut env = env;
             env.insert(name.trim().to_string(), value);
-            (Null, env)
+            Ok((Null, env))
         }
         Node::Var(name) => {
             let name = name.trim().to_string();
             if let Some(value) = env.get(&name) {
-                (value.clone(), env)
+                Ok((value.clone(), env))
             } else {
                 panic!("Unknown var: {}", name)
             }
@@ -98,7 +114,7 @@ pub fn interpret(node: Node, env: Env) -> (Value, Env) {
     }
 }
 
-pub fn run(source: &str) -> Value {
+pub fn run(source: &str) -> Result<Value, String> {
     let parsed = parse(source);
     match parsed {
         Ok(parsed) => {
@@ -106,11 +122,17 @@ pub fn run(source: &str) -> Value {
             let mut env = HashMap::new();
             let mut value = Value::Null;
             for p in parsed {
-                (value, env) = interpret(p, env);
+                match interpret(p, env) {
+                    Ok((v, e)) => {
+                        value = v;
+                        env = e;
+                    }
+                    Err(e) => return Err(e),
+                }
             }
             println!("Environnement: {:?}", env);
-            value
+            Ok(value)
         }
-        Err(e) => panic!("{}", e),
+        Err(e) => Err(e),
     }
 }

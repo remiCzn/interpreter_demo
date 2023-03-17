@@ -1,11 +1,2 @@
-let x=3;
-
-let y = (if(x>2) {3} else {4});
-
-if(x>y) {
-    let z = 2
-} else {
-    let z = 3
-};
-
-y + z
+let a = 2;
+a != True
