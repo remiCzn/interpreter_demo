@@ -100,12 +100,17 @@ pub fn interpret(node: Node, env: Env) -> (Value, Env) {
 
 pub fn run(source: &str) -> Value {
     let parsed = parse(source);
-    println!("AST: {:?}", parsed);
-    let mut env = HashMap::new();
-    let mut value = Value::Null;
-    for p in parsed {
-        (value, env) = interpret(p, env);
+    match parsed {
+        Ok(parsed) => {
+            println!("AST: {:?}", parsed);
+            let mut env = HashMap::new();
+            let mut value = Value::Null;
+            for p in parsed {
+                (value, env) = interpret(p, env);
+            }
+            println!("Environnement: {:?}", env);
+            value
+        }
+        Err(e) => panic!("{}", e),
     }
-    println!("Environnement: {:?}", env);
-    value
 }

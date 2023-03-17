@@ -7,70 +7,92 @@ use pest::{self, Parser};
 #[grammar = "grammar.pest"]
 struct Parse;
 
-pub fn parse(source: &str) -> Vec<Node> {
+pub fn parse(source: &str) -> Result<Vec<Node>, String> {
     let pairs = Parse::parse(Rule::Program, source).unwrap();
-    let mut res = vec![];
+    let mut res: Vec<Node> = vec![];
     for pair in pairs {
         if let Rule::ExprList = pair.as_rule() {
             for inst in pair.into_inner() {
                 println!("Parsing instruction: {:?}", inst.as_str());
-                res.push(parse_exprlist(inst));
+                match parse_exprlist(inst) {
+                    Ok(t) => res.push(t),
+                    Err(e) => return Err(e),
+                }
             }
         }
     }
-    res
+    Ok(res)
 }
 
-fn parse_exprlist(pair: Pair<Rule>) -> Node {
+fn parse_exprlist(pair: Pair<Rule>) -> Result<Node, String> {
     match pair.as_rule() {
         Rule::ExprList => {
-            let mut instructions = vec![];
+            let mut instructions: Vec<Node> = vec![];
             for instr in pair.into_inner() {
-                instructions.push(parse_exprlist(instr));
+                match parse_exprlist(instr) {
+                    Ok(res) => instructions.push(res),
+                    Err(_) => return Err("Error in expression list".to_string()),
+                }
             }
-            Node::NodeSeq(instructions)
+            Ok(Node::NodeSeq(instructions))
         }
         Rule::Int => {
             let istr = pair.as_str();
             let int: i32 = istr.parse().unwrap();
-            Int(int)
+            Ok(Int(int))
         }
         Rule::Bool => match pair.as_str() {
-            "True" => Bool(true),
-            "False" => Bool(false),
-            a => panic!("Wrong boolean form: {}", a),
+            "True" => Ok(Bool(true)),
+            "False" => Ok(Bool(false)),
+            a => Err(format!("Wrong boolean form: {}", a)),
         },
         Rule::If => {
             let mut terms = pair.into_inner();
-            let cond = Box::from(parse_exprlist(terms.next().unwrap()));
-            let then_term = Box::from(parse_exprlist(terms.next().unwrap()));
-            let else_term = Box::from(parse_exprlist(terms.next().unwrap()));
-            Node::If {
-                cond,
-                then_term,
-                else_term,
+            if let Ok(cond) = parse_exprlist(terms.next().unwrap()) {
+                if let Ok(then_term) = parse_exprlist(terms.next().unwrap()) {
+                    if let Ok(else_term) = parse_exprlist(terms.next().unwrap()) {
+                        Ok(Node::If {
+                            cond: Box::from(cond),
+                            then_term: Box::from(then_term),
+                            else_term: Box::from(else_term),
+                        })
+                    } else {
+                        Err("".to_string())
+                    }
+                } else {
+                    Err("".to_string())
+                }
+            } else {
+                Err("".to_string())
             }
         }
         Rule::BinaryExpr => {
             let mut terms = pair.into_inner();
-            let t1 = parse_exprlist(terms.next().unwrap());
-            let op = parse_operator(terms.next().unwrap().as_str());
-            let t2 = parse_exprlist(terms.next().unwrap());
-            Node::BinaryExpr {
-                op,
-                lterm: Box::from(t1),
-                rterm: Box::from(t2),
+            if let Ok(t1) = parse_exprlist(terms.next().unwrap()) {
+                let op = parse_operator(terms.next().unwrap().as_str());
+                if let Ok(t2) = parse_exprlist(terms.next().unwrap()) {
+                    Ok(Node::BinaryExpr {
+                        op,
+                        lterm: Box::from(t1),
+                        rterm: Box::from(t2),
+                    })
+                } else {
+                    Err("".to_string())
+                }
+            } else {
+                Err("".to_string())
             }
         }
         Rule::Let => {
             let mut terms = pair.into_inner();
             let var_name = terms.next().unwrap().as_str();
-            Node::Let(
-                var_name.to_string(),
-                Box::from(parse_exprlist(terms.next().unwrap())),
-            )
+            if let Ok(t) = parse_exprlist(terms.next().unwrap()) {
+                Ok(Node::Let(var_name.to_string(), Box::from(t)))
+            } else {
+                Err("".to_string())
+            }
         }
-        Rule::Var => Node::Var(pair.as_str().to_string()),
+        Rule::Var => Ok(Node::Var(pair.as_str().to_string())),
         _ => panic!("Can't parse this {:?}", pair),
     }
 }

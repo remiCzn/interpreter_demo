@@ -1,3 +1,11 @@
-let x= 2;
+let x=3;
+
 let y = (if(x>2) {3} else {4});
-y + 3
+
+if(x>y) {
+    let z = 2
+} else {
+    let z = 3
+};
+
+y + z
