@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::{BinaryOperator, Node};
+use crate::errors::Error;
 use crate::parse;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -12,7 +13,7 @@ pub enum Value {
 
 type Env = HashMap<String, Value>;
 
-pub fn interpret(node: Node, env: Env) -> Result<(Value, Env), String> {
+pub fn interpret(node: Node, env: Env) -> Result<(Value, Env), Error> {
     use crate::interpret::Value::{Bool, Int, Null};
     match node {
         Node::NodeSeq(list) => {
@@ -55,19 +56,16 @@ pub fn interpret(node: Node, env: Env) -> Result<(Value, Env), String> {
                     BinaryOperator::MoreOrEqual => Ok(Bool(a >= b)),
                     BinaryOperator::Less => Ok(Bool(a < b)),
                     BinaryOperator::LessOrEqual => Ok(Bool(a <= b)),
-                    _ => Err(format!("Unapplicable operator for Int: {:?}", op)),
+                    _ => Err(Error::OperatorType("Int".to_string(), op)),
                 },
                 (Bool(a), Bool(b)) => match op {
                     BinaryOperator::And => Ok(Bool(a && b)),
                     BinaryOperator::Or => Ok(Bool(a || b)),
                     BinaryOperator::Different => Ok(Bool(a != b)),
                     BinaryOperator::Equal => Ok(Bool(a == b)),
-                    _ => Err(format!("Unapplicable operator for Bool: {:?}", op)),
+                    _ => Err(Error::OperatorType("Bool".to_string(), op)),
                 },
-                (t1, t2) => Err(format!(
-                    "t1 and t2 should have the same type, got t1: {:?}, t2: {:?}",
-                    t1, t2
-                )),
+                (t1, t2) => Err(Error::TypeError(t1, t2)),
             };
             match value {
                 Ok(v) => Ok((v, env)),
@@ -91,7 +89,7 @@ pub fn interpret(node: Node, env: Env) -> Result<(Value, Env), String> {
                     interpret(*else_term, env)
                 }
             } else {
-                panic!("Expected boolean, got {:?}", cond)
+                Err(Error::UnexpectedType(cond, "Bool".to_string()))
             }
         }
         Node::Let(name, value) => {
@@ -108,13 +106,13 @@ pub fn interpret(node: Node, env: Env) -> Result<(Value, Env), String> {
             if let Some(value) = env.get(&name) {
                 Ok((value.clone(), env))
             } else {
-                panic!("Unknown var: {}", name)
+                Err(Error::UndeclaredVar(name.to_string()))
             }
         }
     }
 }
 
-pub fn run(source: &str) -> Result<Value, String> {
+pub fn run(source: &str) -> Result<Value, Error> {
     let parsed = parse(source);
     match parsed {
         Ok(parsed) => {

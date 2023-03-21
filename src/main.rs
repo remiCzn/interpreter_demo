@@ -3,6 +3,7 @@ use crate::parser::parse;
 use std::fs;
 
 mod ast;
+mod errors;
 mod interpret;
 mod parser;
 mod test;

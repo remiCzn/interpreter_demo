@@ -1,5 +1,6 @@
 use crate::ast::Node::{Bool, Int};
 use crate::ast::{BinaryOperator, Node};
+use crate::errors::Error;
 use pest::iterators::Pair;
 use pest::{self, Parser};
 
@@ -7,8 +8,13 @@ use pest::{self, Parser};
 #[grammar = "grammar.pest"]
 struct Parse;
 
-pub fn parse(source: &str) -> Result<Vec<Node>, String> {
-    let pairs = Parse::parse(Rule::Program, source).unwrap();
+pub fn parse(source: &str) -> Result<Vec<Node>, Error> {
+    use crate::errors::Error::Parsing;
+    let pairs = if let Ok(pairs) = Parse::parse(Rule::Program, source) {
+        pairs
+    } else {
+        return Err(Parsing(source.to_string()));
+    };
     let mut res: Vec<Node> = vec![];
     for pair in pairs {
         if let Rule::ExprList = pair.as_rule() {
@@ -24,14 +30,14 @@ pub fn parse(source: &str) -> Result<Vec<Node>, String> {
     Ok(res)
 }
 
-fn parse_exprlist(pair: Pair<Rule>) -> Result<Node, String> {
+fn parse_exprlist(pair: Pair<Rule>) -> Result<Node, Error> {
     match pair.as_rule() {
         Rule::ExprList => {
             let mut instructions: Vec<Node> = vec![];
             for instr in pair.into_inner() {
                 match parse_exprlist(instr) {
                     Ok(res) => instructions.push(res),
-                    Err(_) => return Err("Error in expression list".to_string()),
+                    Err(e) => return Err(e),
                 }
             }
             Ok(Node::NodeSeq(instructions))
@@ -44,73 +50,72 @@ fn parse_exprlist(pair: Pair<Rule>) -> Result<Node, String> {
         Rule::Bool => match pair.as_str() {
             "True" => Ok(Bool(true)),
             "False" => Ok(Bool(false)),
-            a => Err(format!("Wrong boolean form: {}", a)),
+            a => Err(Error::Boolean(a.to_string())),
         },
         Rule::If => {
             let mut terms = pair.into_inner();
-            if let Ok(cond) = parse_exprlist(terms.next().unwrap()) {
-                if let Ok(then_term) = parse_exprlist(terms.next().unwrap()) {
-                    if let Ok(else_term) = parse_exprlist(terms.next().unwrap()) {
-                        Ok(Node::If {
+            match parse_exprlist(terms.next().unwrap()) {
+                Ok(cond) => match parse_exprlist(terms.next().unwrap()) {
+                    Ok(then_term) => match parse_exprlist(terms.next().unwrap()) {
+                        Ok(else_term) => Ok(Node::If {
                             cond: Box::from(cond),
                             then_term: Box::from(then_term),
                             else_term: Box::from(else_term),
-                        })
-                    } else {
-                        Err("".to_string())
-                    }
-                } else {
-                    Err("".to_string())
-                }
-            } else {
-                Err("".to_string())
+                        }),
+                        Err(e) => Err(e),
+                    },
+                    Err(e) => Err(e),
+                },
+                Err(e) => Err(e),
             }
         }
         Rule::BinaryExpr => {
             let mut terms = pair.into_inner();
-            if let Ok(t1) = parse_exprlist(terms.next().unwrap()) {
-                let op = parse_operator(terms.next().unwrap().as_str());
-                if let Ok(t2) = parse_exprlist(terms.next().unwrap()) {
-                    Ok(Node::BinaryExpr {
-                        op,
-                        lterm: Box::from(t1),
-                        rterm: Box::from(t2),
-                    })
-                } else {
-                    Err("".to_string())
+            match parse_exprlist(terms.next().unwrap()) {
+                Ok(t1) => {
+                    let op_str = terms.next().unwrap().as_str();
+                    match parse_operator(op_str) {
+                        Some(op) => match parse_exprlist(terms.next().unwrap()) {
+                            Ok(t2) => Ok(Node::BinaryExpr {
+                                op,
+                                lterm: Box::from(t1),
+                                rterm: Box::from(t2),
+                            }),
+                            Err(e) => Err(e),
+                        },
+                        None => Err(Error::Operator(op_str.to_string())),
+                    }
                 }
-            } else {
-                Err("".to_string())
+                Err(e) => Err(e),
             }
         }
         Rule::Let => {
             let mut terms = pair.into_inner();
             let var_name = terms.next().unwrap().as_str();
-            if let Ok(t) = parse_exprlist(terms.next().unwrap()) {
-                Ok(Node::Let(var_name.to_string(), Box::from(t)))
-            } else {
-                Err("".to_string())
+            match parse_exprlist(terms.next().unwrap()) {
+                Ok(t) => Ok(Node::Let(var_name.to_string(), Box::from(t))),
+                Err(e) => Err(e),
             }
         }
         Rule::Var => Ok(Node::Var(pair.as_str().to_string())),
-        _ => panic!("Can't parse this {:?}", pair),
+        _ => Err(Error::Parsing(pair.as_str().to_string())),
     }
 }
 
-fn parse_operator(op: &str) -> BinaryOperator {
+fn parse_operator(op: &str) -> Option<BinaryOperator> {
     match op {
-        "+" => BinaryOperator::Plus,
-        "-" => BinaryOperator::Minus,
-        "*" => BinaryOperator::Times,
-        "/" => BinaryOperator::Divides,
-        "<" => BinaryOperator::Less,
-        "<=" => BinaryOperator::LessOrEqual,
-        ">" => BinaryOperator::More,
-        ">=" => BinaryOperator::MoreOrEqual,
-        "||" => BinaryOperator::Or,
-        "&&" => BinaryOperator::And,
-        "==" => BinaryOperator::Equal,
-        "!=" => BinaryOperator::Different,
-        u => panic!("Unknown operator: {}", u),
+        "+" => Some(BinaryOperator::Plus),
+        "-" => Some(BinaryOperator::Minus),
+        "*" => Some(BinaryOperator::Times),
+        "/" => Some(BinaryOperator::Divides),
+        "<" => Some(BinaryOperator::Less),
+        "<=" => Some(BinaryOperator::LessOrEqual),
+        ">" => Some(BinaryOperator::More),
+        ">=" => Some(BinaryOperator::MoreOrEqual),
+        "||" => Some(BinaryOperator::Or),
+        "&&" => Some(BinaryOperator::And),
+        "==" => Some(BinaryOperator::Equal),
+        "!=" => Some(BinaryOperator::Different),
+        _ => None,
     }
 }
