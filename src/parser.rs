@@ -16,10 +16,10 @@ pub fn parse(source: &str) -> Result<Vec<Node>, Error> {
         return Err(Parsing(source.to_string()));
     };
     let mut res: Vec<Node> = vec![];
+    //Parse instructions one by one;
     for pair in pairs {
         if let Rule::ExprList = pair.as_rule() {
             for inst in pair.into_inner() {
-                println!("Parsing instruction: {:?}", inst.as_str());
                 match parse_exprlist(inst) {
                     Ok(t) => res.push(t),
                     Err(e) => return Err(e),
@@ -98,6 +98,7 @@ fn parse_exprlist(pair: Pair<Rule>) -> Result<Node, Error> {
             }
         }
         Rule::Var => Ok(Node::Var(pair.as_str().to_string())),
+        Rule::Function => Ok(Node::Bool(false)),
         _ => Err(Error::Parsing(pair.as_str().to_string())),
     }
 }

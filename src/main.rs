@@ -7,7 +7,6 @@ mod errors;
 mod interpret;
 mod parser;
 mod test;
-mod typer;
 
 fn main() {
     let arg1 = std::env::args().nth(1);

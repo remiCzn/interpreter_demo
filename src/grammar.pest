@@ -1,12 +1,12 @@
 Program  = _{ SOI ~ ExprList ~ EOI }
 ExprList =  { (Expr ~ ";")* ~ Expr }
-Expr     = _{ BinaryExpr | Let | Term | If }
+Expr     = _{ BinaryExpr | Let | Function | Term | If }
 
 // Int (Int -> Int)
 Int  = @{ (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT+ | ASCII_DIGIT) }
 Bool = @{ "True" | "False" }
 
-Term = _{ Int | Bool | Var | "(" ~ Expr ~ ")" }
+Term = _{ Int | Bool | Var | Function | "(" ~ Expr ~ ")" }
 
 BinaryExpr   =  { Term ~ Operator ~ Term }
 Operator     =  { IntOperator | CompOperator | BoolOperator }
@@ -15,10 +15,11 @@ CompOperator = _{ "<=" | "<" | ">=" | ">" | "==" | "!=" }
 BoolOperator = _{ "&&" | "||" }
 
 // If
-If = { "if(" ~ Expr ~ ")" ~ "{" ~ ExprList ~ "}" ~ "else" ~ "{" ~ ExprList ~ "}" }
+If = { "if" ~ "(" ~ Expr ~ ")" ~ "{" ~ ExprList ~ "}" ~ "else" ~ "{" ~ ExprList ~ "}" }
 
 // Let
-Let = { "let" ~ Var ~ "=" ~ Term }
+Let = { "let" ~ Var ~ "=" ~ (Function | Term) }
+Function = { "(" ~ Var ~ ")" ~ "=>" ~ "{" ~ ExprList ~ "}" }
 Var = { !ForbiddenTerms ~ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 
 ForbiddenTerms = { "if" | "let" | "True" | "False" }
